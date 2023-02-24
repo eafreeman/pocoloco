@@ -56,7 +56,7 @@ metadata[c(2,3,5,6,8,9,13,17,20,28,33,36,37,38,40,42,43,50,59,61,48), status := 
 
 #add in statements of who died or survived for future automated stats 
 gfp_dead <- 
-  dsRNA_dead <- 
+dsRNA_dead <- 
   
   
   
@@ -97,10 +97,8 @@ ggetho(dt_curated, aes(z=activity)) + #should be the same as above
 
 ## add experiment phase information to each segment of experiment
 dt_curated <- dt_curated[, phase := ifelse(t %between% c(days(0), days(3)), "LD1",
-                                           ifelse(t %between% c(days(3), days(6)), "FR1",
-                                                  ifelse(t %between% c(days(6), days(12)), "VS",
-                                                         ifelse(t %between% c(days(12.5), days(20)), "FR2",
-                                                                "Not-used"))))]
+                                           ifelse(t %between% c(days(3), days(8)), "FR",
+                                                                "Not-used"))]
 
 
 ##interactively plot data and adjust phase days as necessary
