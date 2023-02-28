@@ -69,6 +69,8 @@ ggetho(manual_dt, aes(z=activity)) +
   stat_tile_etho() +
   stat_ld_annotations()
 
+ggetho(manual_dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
+
 summary(manual_dt)
 
 
@@ -119,17 +121,17 @@ dt[, uid := 1 : .N, meta = TRUE]
 dt[, .(id, uid) , meta = TRUE]
 
 ## curate dead animals or when animals die
-dt_curated <- curate_dead_animals(dt, prop_immobile = 0.0001)
+dt_curated <- curate_dead_animals(dt, prop_immobile = 0.0001, resolution = 72)
 summary(dt_curated)
 
 
 ##curate animals that did not live the whole time
 # we make a summary table of all lifespan for each animals
-lifespan_dt <- dt[, .(lifespan = max(t)), by=id]
+lifespan_dt <- dt_curated[, .(lifespan = max(t)), by=id]
 # we filter this table for lifespan>2 and we keep the id
 valid_ids <- lifespan_dt[lifespan > days(6), id]
 # we apply this filter
-dt_curated <- dt[id %in% valid_ids]
+dt_curated <- dt_curated[id %in% valid_ids]
 summary(dt_curated)
 
 ggetho(dt_curated, aes(z=activity)) +

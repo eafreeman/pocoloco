@@ -12,6 +12,7 @@ library(cowplot)
 library(shiny)
 library(tidyverse)
 library(plotly)
+library(ggthemes)
 
 ## use this file to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
@@ -30,7 +31,7 @@ metadata <- data.table(file = rep(c("Data/EF_220223_5681/Monitor82.txt",
                        entrainment = rep(c("LD_DD"), each = 64),
                        ##startdatetime at lights on day before 
                        start_datetime = 
-                         c(rep("2009-02-13 01:25:00", times = 64)),                     
+                         c(rep("2009-02-13 01:25:00", times = 64)),   #ZT0                  
                        ## experimental stop time
                        stop_datetime = 
                          c(rep("2009-02-21 15:00:00", times = 64)),
@@ -130,7 +131,7 @@ peak_summary <- rejoin(dt_peaks)
 peak_summary[, peak_no := as.factor(peak_no)]
 
 grouped_ggbetweenstats(
-  data = peak_summary[FR1_rhythmic == TRUE & phase %in% c("FR1")],
+  data = peak_summary[FR_rhythmic == TRUE & phase %in% c("FR")],
   x = entrainment,
   y = peak_time,
   grouping.var = genotype,
@@ -140,13 +141,13 @@ grouped_ggbetweenstats(
 
 
 
-dt_peak_sum_id <- peak_summary[phase %in% c("FR1", "FR2"), .(meantime = mean(peak_time),
+dt_peak_sum_id <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
                                                              medtime = median(peak_time),
                                                              n = length(peak_time),
                                                              sdphase = sd(peak_time)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
-dt_peak_sum <- peak_summary[phase %in% c("FR1", "FR2"), .(meantime = mean(peak_time),
+dt_peak_sum <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
                                                           medtime = median(peak_time),
                                                           n = length(peak_time),
                                                           sdphase = sd(peak_time)),
@@ -154,17 +155,13 @@ dt_peak_sum <- peak_summary[phase %in% c("FR1", "FR2"), .(meantime = mean(peak_t
 
 
 grouped_ggbetweenstats(
-  data = dt_peak_sum_id[phase %in% c("FR1")],
+  data = dt_peak_sum_id[phase %in% c("FR")],
   x = entrainment,
   y = medtime,
   grouping.var = genotype,
   mean.plotting = FALSE,
   title.text = "peak phase FR1"
 )
-
-
-
-
 
 
 ## autocorrelation
@@ -213,16 +210,16 @@ setmeta(dt_auto, dt_curated[, meta = TRUE])
 auto_summary <- rejoin(dt_auto)
 
 
-dt_auto_sum_id <- auto_summary[phase %in% c("FR1", "FR2") &
+dt_auto_sum_id <- auto_summary[phase %in% c("FR") &
                                  peak_no == 3, .(medheight = median(height)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
-dt_auto_sum <- auto_summary[phase %in% c("FR1", "FR2") &
+dt_auto_sum <- auto_summary[phase %in% c("FR") &
                               peak_no == 3, .(medheight = median(height)),
                             by = c("genotype", "sex", "entrainment", "phase")]
 
 grouped_ggbetweenstats(
-  data = dt_auto_sum_id[phase %in% c("FR1")],
+  data = dt_auto_sum_id[phase %in% c("FR")],
   x = entrainment,
   y = medheight,
   grouping.var = genotype,
@@ -240,7 +237,7 @@ dt_sum <- merge.data.table(dt_peak_sum, dt_auto_sum)
 
 ##periodogram - FR1
 
-dt_pgram_FR1 <- periodogram(moving, dt_curated[phase == "FR1"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
+dt_pgram_FR1 <- periodogram(moving, dt_curated[phase == "FR"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
 
 dt_pgram_FR1 <-find_peaks(dt_pgram_FR1)
 
@@ -264,11 +261,13 @@ grouped_ggbetweenstats(
 
 #final visualizations 
 
-ggetho(dt, aes(x=t, y=moving)) + stat_pop_etho() +
+ggetho(dt, aes(x=t, y=moving)) + 
+  stat_pop_etho() +
   facet_grid(genotype ~ .) #prop moving
 
-ggetho(dt, aes(x=t, y=activity)) + stat_pop_etho() +
-  facet_grid(genotype ~ .) #beam breaks 
+ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
+  stat_pop_etho() +
+  facet_grid(genotype ~ .)
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 
@@ -308,14 +307,48 @@ pairwise.wilcox.test(dt_curated$total_activity, dt_curated$genotype)
 
 ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
   geom_point() +
-  geom_hline(yintercept = mean(dt_curated$total_activity))
+  geom_hline(yintercept = mean(dt_curated$total_activity)) +
+  theme(axis.text.x = element_text(size=9, angle=45))
 
-##differences in activity at ZT13
 
-ggetho(dt_curated, aes(x=t, y=activity)) + 
-  stat_pop_etho() +
-  stat_ld_annotations() +
-  facet_grid(genotype ~ .)
+#these are bad stats
+x <- sum(dt_curated$total_activity[dt_curated$genotype == "GFP"])
+y <- sum(dt_curated$total_activity[dt_curated$genotype == "5681"])
+t.test(c(x,y))
+
+x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 2])
+y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 2])
+t.test(c(x,y))
+
+x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 4])
+y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 4])
+t.test(c(x,y))
+
+#differences in total activity per day
+
+dt_curated[, day := floor(t/86400)] #create day variable
+
+dt_curated[, daily_activity := sum(activity), by = .(id,dt_curated$day)]
+
+#day 2
+ggplot(data = dt_curated[day == 2], aes(x = id, y = daily_activity, color = genotype)) +
+  geom_point() +
+  geom_hline(yintercept = mean(dt_curated$daily_activity))
+  #theme(axis.text.x = element_text(size=9, angle=45))
+
+pairwise.wilcox.test(dt_curated$total_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+
+kruskal.test(dt_curated$total_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+
+
+#day 4
+ggplot(data = dt_curated[day == 4], aes(x = id, y = daily_activity, color = genotype)) +
+  geom_point() +
+  geom_hline(yintercept = mean(dt_curated$daily_activity))
+
+pairwise.wilcox.test(dt_curated$total_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
+
+kruskal.test(dt_curated$total_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
 
 
 #average activity for each genotype at each time interval (hour?)
@@ -328,7 +361,36 @@ ggperio(dt_pgram_FR1, aes(period, power, colour=genotype)) +
 
 ## differences in activity at swarming time 
 
-dt_curated[, hour := t/360]
+dt_curated[, hour := floor(t/3600)] 
 
 
+dt_curated %>%
+  group_by(hour)
+
+
+##by day swarming time
+
+dt_curated[, hourly_activity := sum(activity), by = .(id,dt_curated$hour)]
+dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_curated$hour)]
+
+
+ggplot(data = dt_curated[day == 2]) +
+  geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
+  facet_wrap(~ genotype)
+
+ggplot(data = dt_curated[day == 4]) +
+  geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
+  facet_wrap(~ genotype)
+
+
+#5 minute intervals
+
+dt_curated[, fives := floor(t/300)]
+
+dt_curated[, fives_activity := sum(activity), by = .(id,dt_curated$fives)]
+dt_curated[, avg_fives_activity := mean(fives_activity), by = .(genotype,dt_curated$fives)]
+
+ggplot(data = dt_curated[hour ==109]) +
+  geom_line(aes(x = fives, y= avg_fives_activity, color = genotype)) +
+  facet_wrap(~ genotype)
 
