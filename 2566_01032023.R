@@ -17,38 +17,36 @@ library(ggthemes)
 ## use this file to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
 
-#computer date and time were messed up. Computer recorded the year as 2009 and the time was 1 hour and 35 minutes behind
-##this works out to 1:25 pm dusk
 
-metadata <- data.table(file = rep(c("Data/EF_220223_5681/Monitor82.txt",
-                                    "Data/EF_220223_5681/Monitor81.txt"), each = 32),
+metadata <- data.table(file = rep(c("Data/EF_01032023_2566/Monitor77.txt",
+                                    "Data/EF_01032023_2566/Monitor78.txt"), each = 32),
                        ## a unique experiment ID if you want to analyse across experiments
-                       exp_ID = rep(c("AGAP005681_GFP"), each = 64),
+                       exp_ID = rep(c("AGAP002566_GFP"), each = 64),
                        ## a link to the environmental monitor file use in the experiment
-                       env_monitor = rep(c("Data/EF_31012023/Monitor92.txt"), each =64),
+                       env_monitor = rep(c("Data/EF_01032023/Monitor94.txt"), each =64),
                        incubator = rep(c("1_Behavioural_room"), each = 64),
                        ##entrainment = do these for each ZT 
                        entrainment = rep(c("LD_DD"), each = 64),
                        ##startdatetime at lights on day before 
                        start_datetime = 
-                         c(rep("2009-02-13 01:25:00", times = 64)),   #ZT0                  
+                         c(rep("2023-02-21 03:00:00", times = 64)),   #ZT0                  
                        ## experimental stop time
                        stop_datetime = 
-                         c(rep("2009-02-21 15:00:00", times = 64)),
+                         c(rep("2023-02-28 03:00:00", times = 64)),
                        ## this is the tube number position in each monitor
                        region_id = rep(1:32, 2),
                        ## the genotypes used in the experiment
-                       genotype = rep(c("5681",
+                       genotype = rep(c("2566",
                                         "GFP"), each = 32),
                        ## sex of the individuals
                        sex = rep(c("M"), each=64),
                        ## temperature of experiment
                        temp = rep(c("28"), each = 64),
                        ## whether or not the individual survived to the end: d = dead, a = alive
-                       status = rep(c("alive")))
+                       status = rep(c("dead")))
 
-#add in which mosquitoes died 
-metadata[c(2,3,5,6,8,9,13,17,20,28,33,36,37,38,40,42,43,50,59,61,48), status := "dead"]
+#add in which mosquitoes were alive
+metadata[c(21,22,24,27,29,31,50,52:63), status := "alive"]
 
 ## now change the status of "dead" or "alive
 
@@ -57,7 +55,7 @@ metadata[c(2,3,5,6,8,9,13,17,20,28,33,36,37,38,40,42,43,50,59,61,48), status := 
 
 #add in statements of who died or survived for future automated stats 
 gfp_dead <- 
-dsRNA_dead <- 
+  dsRNA_dead <- 
   
   
   
@@ -99,7 +97,7 @@ ggetho(dt_curated, aes(z=activity)) + #should be the same as above
 ## add experiment phase information to each segment of experiment
 dt_curated <- dt_curated[, phase := ifelse(t %between% c(days(0), days(3)), "LD1",
                                            ifelse(t %between% c(days(3), days(8)), "FR",
-                                                                "Not-used"))]
+                                                  "Not-used"))]
 
 
 ##interactively plot data and adjust phase days as necessary
@@ -142,15 +140,15 @@ grouped_ggbetweenstats(
 
 
 dt_peak_sum_id <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
-                                                             medtime = median(peak_time),
-                                                             n = length(peak_time),
-                                                             sdphase = sd(peak_time)),
+                                                     medtime = median(peak_time),
+                                                     n = length(peak_time),
+                                                     sdphase = sd(peak_time)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
 dt_peak_sum <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
-                                                          medtime = median(peak_time),
-                                                          n = length(peak_time),
-                                                          sdphase = sd(peak_time)),
+                                                  medtime = median(peak_time),
+                                                  n = length(peak_time),
+                                                  sdphase = sd(peak_time)),
                             by = c("genotype", "sex", "entrainment", "phase")]
 
 
@@ -265,7 +263,7 @@ ggetho(dt, aes(x=t, y=moving)) +
   stat_pop_etho() +
   facet_grid(genotype ~ .) #prop moving
 
-ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
+ggetho(dt, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
   facet_grid(genotype ~ .)
 
@@ -291,15 +289,15 @@ ggplot(summary_dt, aes(genotype, period, fill= genotype)) +
 
 ggperio(per_xsq_dt) + geom_line(aes(group = id, colour=genotype))
 
-pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in GFP and 5681 per
+pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in GFP and 2566 per
 
 
 ##differences in total activity 
 
 #create new variable
 
-dt_curated[str_detect(id, "Monitor81"), genotype := "GFP"]
-dt_curated[str_detect(id, "Monitor82"), genotype := "5681"]
+dt_curated[str_detect(id, "Monitor78"), genotype := "GFP"]
+dt_curated[str_detect(id, "Monitor77"), genotype := "2566"]
 
 dt_curated[, total_activity := sum(activity), by = id]
 
@@ -313,15 +311,15 @@ ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
 
 #these are bad stats
 x <- sum(dt_curated$total_activity[dt_curated$genotype == "GFP"])
-y <- sum(dt_curated$total_activity[dt_curated$genotype == "5681"])
+y <- sum(dt_curated$total_activity[dt_curated$genotype == "2566"])
 t.test(c(x,y))
 
 x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 2])
-y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 2])
+y <- sum(dt_curated$daily_activity[dt_curated$genotype == "2566" & dt_curated$day == 2])
 t.test(c(x,y))
 
 x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 4])
-y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 4])
+y <- sum(dt_curated$daily_activity[dt_curated$genotype == "2566" & dt_curated$day == 4])
 t.test(c(x,y))
 
 #differences in total activity per day
@@ -334,7 +332,7 @@ dt_curated[, daily_activity := sum(activity), by = .(id,dt_curated$day)]
 ggplot(data = dt_curated[day == 2], aes(x = id, y = daily_activity, color = genotype)) +
   geom_point() +
   geom_hline(yintercept = mean(dt_curated$daily_activity))
-  #theme(axis.text.x = element_text(size=9, angle=45))
+#theme(axis.text.x = element_text(size=9, angle=45))
 
 pairwise.wilcox.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
 
