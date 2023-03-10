@@ -48,6 +48,11 @@ metadata[, treatment := paste(genotype, sex, sep='_')]
 ## tube in the experiment with a column for each of the metavariables you include.
 
 
+gfp_dead <- 10 #7 alive (15 for qPCR)
+dsRNA_dead <- 5 #12 alive (15 for qPCR) 
+
+#19 total alive
+
 ###########################################################
 
 #Analysis 
@@ -75,13 +80,13 @@ ggetho(dt, aes(z=activity)) +
   stat_ld_annotations()
 
 ## curate dead animals or when animals die
-dt_curated <- curate_dead_animals(dt, prop_immobile = 0.005)
+dt_curated <- curate_dead_animals(dt, prop_immobile = 0.001)
 
 ##curate animals that did not live the whole time
 # we make a summary table of all lifespan for each animals
 lifespan_dt <- dt_curated[, .(lifespan = max(t)), by=id]
 # we filter this table for lifespan>2 and we keep the id
-valid_ids <- lifespan_dt[lifespan > days(5), id]
+valid_ids <- lifespan_dt[lifespan > days(4), id]
 # we apply this filter
 dt_curated <- dt_curated[id %in% valid_ids]
 summary(dt_curated)
@@ -364,17 +369,72 @@ pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in G
 
 ##differences in total activity 
 
+##differences in total activity 
+
 #create new variable
+
+dt_curated[str_detect(id, "Monitor78"), genotype := "GFP"]
+dt_curated[str_detect(id, "Monitor77"), genotype := "9770"]
+
 dt_curated[, total_activity := sum(activity), by = id]
 
-pairwise.wilcox.test(dt_curated$total_activity, dt_curated$id)
+wilcox.test(dt_curated$total_activity ~ dt_curated$genotype)
 
-dt_curated %>%
-  ggplot() +
-  geom_point(aes(x = id, y = total_activity))
-
-
-
+ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
+  geom_point() +
+  geom_hline(yintercept = mean(dt_curated$total_activity)) +
+  theme(axis.text.x = element_text(size=9, angle=45))
 
 
+#differences in total activity per day
+
+dt_curated[, day := floor(t/86400)] #create day variable
+
+dt_curated[, daily_activity := sum(activity), by = .(id,dt_curated$day)]
+
+#day 2
+ggplot(data = dt_curated[day == 2], aes(x = id, y = daily_activity, color = genotype)) +
+  geom_point() +
+  geom_hline(yintercept = mean(dt_curated$daily_activity))
+#theme(axis.text.x = element_text(size=9, angle=45))
+
+wilcox.test(dt_curated$daily_activity[dt_curated$day==2] ~ dt_curated$genotype[dt_curated$day==2])
+
+kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+
+
+#day 4
+ggplot(data = dt_curated[day == 4], aes(x = id, y = daily_activity, color = genotype)) +
+  geom_point() +
+  geom_hline(yintercept = mean(dt_curated$daily_activity))
+
+wilcox.test(dt_curated$daily_activity[dt_curated$day==4] ~ dt_curated$genotype[dt_curated$day==4])
+
+kruskal.test(dt_curated$daily_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
+
+##by day swarming time
+
+dt_curated[, hour := floor(t/3600)] 
+dt_curated[, hourly_activity := sum(activity), by = .(id,dt_curated$hour)]
+dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_curated$hour)]
+
+
+ggplot(data = dt_curated[day == 2]) +
+  geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
+  facet_wrap(~ genotype)
+
+ggplot(data = dt_curated[day == 4]) +
+  geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
+  facet_wrap(~ genotype)
+
+#5 minute intervals
+
+dt_curated[, fives := floor(t/300)]
+
+dt_curated[, fives_activity := sum(activity), by = .(id,dt_curated$fives)]
+dt_curated[, avg_fives_activity := mean(fives_activity), by = .(genotype,dt_curated$fives)]
+
+ggplot(data = dt_curated[day == 2]) +
+  geom_line(aes(x = fives, y= avg_fives_activity, color = genotype)) +
+  facet_wrap(~ genotype)
 

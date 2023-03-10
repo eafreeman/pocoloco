@@ -336,9 +336,9 @@ ggplot(data = dt_curated[day == 2], aes(x = id, y = daily_activity, color = geno
   geom_hline(yintercept = mean(dt_curated$daily_activity))
   #theme(axis.text.x = element_text(size=9, angle=45))
 
-pairwise.wilcox.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+wilcox.test(dt_curated$daily_activity[dt_curated$day==2] ~ dt_curated$genotype[dt_curated$day==2])
 
-kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2]) #this would be for more than 2 groups
 
 
 #day 4
@@ -346,7 +346,7 @@ ggplot(data = dt_curated[day == 4], aes(x = id, y = daily_activity, color = geno
   geom_point() +
   geom_hline(yintercept = mean(dt_curated$daily_activity))
 
-pairwise.wilcox.test(dt_curated$daily_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
+wilcox.test(dt_curated$daily_activity[dt_curated$day==4] ~ dt_curated$genotype[dt_curated$day==4])
 
 kruskal.test(dt_curated$daily_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
 
@@ -363,9 +363,6 @@ ggperio(dt_pgram_FR1, aes(period, power, colour=genotype)) +
 
 dt_curated[, hour := floor(t/3600)] 
 
-
-dt_curated %>%
-  group_by(hour)
 
 
 ##by day swarming time
@@ -393,4 +390,11 @@ dt_curated[, avg_fives_activity := mean(fives_activity), by = .(genotype,dt_cura
 ggplot(data = dt_curated[day == 2]) +
   geom_line(aes(x = fives, y= avg_fives_activity, color = genotype)) +
   facet_wrap(~ genotype)
+
+
+##################### render 
+
+rmarkdown::render("5681_220223.R")
+
+
 
