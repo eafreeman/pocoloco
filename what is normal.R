@@ -47,23 +47,20 @@ metadata <- data.table(file = rep(c("Data/EF_100723/Monitor84.txt",
                        ## temperature of experiment
                        temp = rep(c("28"), each = 64),
                        ## whether or not the individual survived to the end: d = dead, a = alive
-                       status = rep(c("alive")))
+                       status = rep(c("dead")))
 
 #add in which mosquitoes died 
-metadata[c(2,3,5,6,8,9,13,17,20,28,33,36,37,38,40,42,43,50,59,61,48), status := "dead"]
+metadata[c(1,5,6,7,8,9,10,11,12,14,15,16,17,18,20,21,23,26,27,29,30,32,
+           33,35,36,37,38,39,40,42,
+           65,66,67,68,67,70,71,72,73,
+           97,98,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,122,123,124,125,126,127,128), status := "alive"]
 
 ## now change the status of "dead" or "alive
 
 ## add as many other variables as you like you should end up with a data.table that has 1 row for each individual activity
 ## tube in the experiment with a column for each of the metavariables you include.
 
-#add in statements of who died or survived for future automated stats 
-gfp_dead <- 
-  dsRNA_dead <- 
-  
-  
-  
-  ###########################################################
+###########################################################
 
 #Analysis 
 
@@ -99,9 +96,7 @@ ggetho(dt_curated, aes(z=activity)) + #should be the same as above
 
 
 ## add experiment phase information to each segment of experiment
-dt_curated <- dt_curated[, phase := ifelse(t %between% c(days(0), days(3)), "LD1",
-                                           ifelse(t %between% c(days(3), days(8)), "FR",
-                                                  "Not-used"))]
+dt_curated <- dt_curated[, phase := "LD"]
 
 
 ##interactively plot data and adjust phase days as necessary
@@ -301,8 +296,10 @@ pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in G
 
 #create new variable
 
-dt_curated[str_detect(id, "Monitor81"), genotype := "GFP"]
-dt_curated[str_detect(id, "Monitor82"), genotype := "5681"]
+dt_curated[str_detect(id, "Monitor83"), genotype := "injected"]
+dt_curated[str_detect(id, "Monitor84"), genotype := "injected"]
+dt_curated[str_detect(id, "Monitor82"), genotype := "not injected"]
+dt_curated[str_detect(id, "Monitor81"), genotype := "not injected"]
 
 dt_curated[, total_activity := sum(activity), by = id]
 
@@ -311,7 +308,7 @@ pairwise.wilcox.test(dt_curated$total_activity, dt_curated$genotype)
 ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
   geom_point() +
   geom_hline(yintercept = mean(dt_curated$total_activity)) +
-  theme(axis.text.x = element_text(size=9, angle=45))
+  theme(axis.text.x = element_blank())
 
 
 #differences in total activity per day
@@ -388,3 +385,21 @@ ggplot(data = dt_curated[day == 2]) +
   geom_line(aes(x = fives, y= avg_fives_activity, color = genotype)) +
   facet_wrap(~ genotype)
 
+
+
+############ MATING PLOTS 
+
+inj_mate <- tibble(males = 50)
+non_mate <- tibble(males = 56)
+
+inj_mate <- inj_mate %>% mutate(females = 52, mated = 4, group = "injected")
+non_mate <- non_mate %>% mutate(females = 47, mated = 15, group = "not injected")
+
+mating <- full_join(inj_mate, non_mate)
+
+
+ggplot(data = mating) +
+  geom_col(aes(x = group, y = females), fill = c("#BFD7EA", "#CBC3E4")) +
+  geom_col(aes(x = group, y = mated, fill = group), fill = c("#326B9A", "#533F8D")) +
+  labs(x = "Group", y = "Number of Mosquitoes", title = "Mating Experiment") +
+  theme_few()
