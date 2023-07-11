@@ -265,7 +265,8 @@ ggetho(dt, aes(x=t, y=moving)) +
 
 ggetho(dt, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
-  facet_grid(genotype ~ .)
+  facet_grid(genotype ~ .) +
+  labs(y = "Beam crosses (per minute)")
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 

@@ -267,7 +267,8 @@ ggetho(dt, aes(x=t, y=moving)) +
 
 ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
-  facet_grid(genotype ~ .)
+  facet_grid(genotype ~ .) +
+  labs(title = "Injected Activity", x = "Day", y = "Beam crosses (per minute)")
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 
@@ -310,19 +311,6 @@ ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
   geom_hline(yintercept = mean(dt_curated$total_activity)) +
   theme(axis.text.x = element_text(size=9, angle=45))
 
-
-#these are bad stats
-x <- sum(dt_curated$total_activity[dt_curated$genotype == "GFP"])
-y <- sum(dt_curated$total_activity[dt_curated$genotype == "5681"])
-t.test(c(x,y))
-
-x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 2])
-y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 2])
-t.test(c(x,y))
-
-x <- sum(dt_curated$daily_activity[dt_curated$genotype == "GFP" & dt_curated$day == 4])
-y <- sum(dt_curated$daily_activity[dt_curated$genotype == "5681" & dt_curated$day == 4])
-t.test(c(x,y))
 
 #differences in total activity per day
 
@@ -400,8 +388,5 @@ ggplot(data = dt_curated[day == 2]) +
 
 
 ##################### render 
-
-rmarkdown::render("5681_220223.R")
-
 
 

@@ -229,63 +229,22 @@ dt_summary <- merge.data.table(dt_peak_sum_id, dt_auto_sum_id)
 dt_sum <- merge.data.table(dt_peak_sum, dt_auto_sum)
 
 
-##periodogram - FR1
-
-dt_pgram_FR1 <- periodogram(moving, dt_curated[phase == "FR"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
-
-dt_pgram_FR1 <-find_peaks(dt_pgram_FR1)
-
-ggperio(dt_pgram_FR1, aes(y = power - signif_threshold, colour=genotype)) + 
-  stat_pop_etho() +
-  geom_hline(yintercept = 0) +
-  facet_wrap(genotype ~ entrainment)
-
-dt_pgram_FR1_sum <- rejoin(dt_pgram_FR1[peak == 1])
-dt_pgram_FR1_sum[, period_h := period/hours(1)]
-
-grouped_ggbetweenstats(
-  data = dt_pgram_FR1_sum,
-  x = entrainment,
-  y = period_h,
-  grouping.var = genotype,
-  title.text = "Chi^2 periodogram FR1"
-)
-
 
 
 #final visualizations 
 
-ggetho(dt, aes(x=t, y=moving)) + 
+ggetho(dt, aes(x=t, y=activity)) + 
   stat_pop_etho() +
-  facet_grid(genotype ~ .) #prop moving
+  labs(title = "Non-injected G3")
+  #facet_grid(genotype ~ .) #prop moving
 
 ggetho(dt, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
-  facet_grid(genotype ~ .)
+  facet_grid(genotype ~ .) +
+  labs(title = "Non-injected Activity", y = "Beam crosses (per minute)", x = "Day")
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 
-#difference in periods 
-
-per_xsq_dt <- periodogram(activity, 
-                          dt_curated,
-                          FUN = chi_sq_periodogram)
-per_xsq_dt
-
-per_xsq_dt <- find_peaks(per_xsq_dt)
-per_xsq_dt
-
-summary_dt <- rejoin(per_xsq_dt[peak==1])
-summary_dt
-
-ggplot(summary_dt, aes(genotype, period, fill= genotype)) + 
-  geom_boxplot(outlier.colour = NA) +
-  geom_jitter(aes(size=power -  signif_threshold), alpha=.5) +
-  scale_y_hours(name = "Period") 
-
-ggperio(per_xsq_dt) + geom_line(aes(group = id, colour=genotype))
-
-pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in GFP and 2566 per
 
 
 ##differences in total activity 
@@ -382,6 +341,6 @@ dt_curated[, fives_activity := sum(activity), by = .(id,dt_curated$fives)]
 dt_curated[, avg_fives_activity := mean(fives_activity), by = .(genotype,dt_curated$fives)]
 
 ggplot(data = dt_curated[day == 2]) +
-  geom_line(aes(x = fives, y= avg_fives_activity, color = genotype)) +
-  facet_wrap(~ genotype)
+  geom_line(aes(x = fives, y= avg_fives_activity)) +
+  #facet_wrap(~ genotype)
 

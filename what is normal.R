@@ -11,49 +11,59 @@ library(ggstatsplot)
 library(cowplot)
 library(shiny)
 library(tidyverse)
+library(plotly)
+library(ggthemes)
 
 ## use this file to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
 
-metadata <- data.table(file = rep(c("Data/EF_15022023_9770/Monitor77.txt",
-                                    "Data/EF_15022023_9770/Monitor78.txt"), each = 32),
+#computer date and time were messed up. Computer recorded the year as 2009 and the time was 1 hour and 35 minutes behind
+##this works out to 1:25 pm dusk
+
+metadata <- data.table(file = rep(c("Data/EF_100723/Monitor84.txt",
+                                    "Data/EF_100723/Monitor83.txt",
+                                    "Data/EF_100723/Monitor82.txt",
+                                    "Data/EF_100723/Monitor81.txt"), each = 32),
                        ## a unique experiment ID if you want to analyse across experiments
-                       exp_ID = rep(c("AGAP009770_GFP"), each = 64),
+                       exp_ID = rep(c("Normality"), each = 64),
                        ## a link to the environmental monitor file use in the experiment
-                       env_monitor = rep(c("Data/EF_31012023/Monitor94.txt"), each =64),
+                       env_monitor = rep(c("Data/EF_100723/Monitor94.txt"), each =64),
                        incubator = rep(c("1_Behavioural_room"), each = 64),
                        ##entrainment = do these for each ZT 
                        entrainment = rep(c("LD_DD"), each = 64),
                        ##startdatetime at lights on day before 
                        start_datetime = 
-                         c(rep("2023-02-07 03:00:00", times = 64)),                     
+                         c(rep("2023-07-02 02:00:00", times = 64)),   #ZT0                  
                        ## experimental stop time
                        stop_datetime = 
-                         c(rep("2023-02-14 20:00:00", times = 64)),
+                         c(rep("2023-07-10 10:00:00", times = 64)),
                        ## this is the tube number position in each monitor
                        region_id = rep(1:32, 2),
                        ## the genotypes used in the experiment
-                       genotype = rep(c("9770",
-                                        "GFP"), each = 32),
+                       genotype = rep(c("Injected",
+                                        "Not injected"), each = 64),
                        ## sex of the individuals
                        sex = rep(c("M"), each=64),
                        ## temperature of experiment
-                       temp = rep(c("28"), each = 64))
+                       temp = rep(c("28"), each = 64),
+                       ## whether or not the individual survived to the end: d = dead, a = alive
+                       status = rep(c("alive")))
 
-## this creates another metavariable "treatment" for specific combinations of varibales that might be interesting
-## here it creates one for genotype ~ sex
-metadata[, treatment := paste(genotype, sex, sep='_')]
+#add in which mosquitoes died 
+metadata[c(2,3,5,6,8,9,13,17,20,28,33,36,37,38,40,42,43,50,59,61,48), status := "dead"]
+
+## now change the status of "dead" or "alive
 
 ## add as many other variables as you like you should end up with a data.table that has 1 row for each individual activity
 ## tube in the experiment with a column for each of the metavariables you include.
 
-
-gfp_dead <- 10 #7 alive (15 for qPCR)
-dsRNA_dead <- 5 #12 alive (15 for qPCR) 
-
-#19 total alive
-
-###########################################################
+#add in statements of who died or survived for future automated stats 
+gfp_dead <- 
+  dsRNA_dead <- 
+  
+  
+  
+  ###########################################################
 
 #Analysis 
 
@@ -68,7 +78,7 @@ metadata <- link_dam_metadata(metadata, result_dir = data_dir)
 
 ##load raw monitor files
 
-dt <- load_dam(metadata, FUN = sleepr::sleep_dam_annotation)
+dt <- load_dam(metadata[status == "alive"], FUN = sleepr::sleep_dam_annotation)
 
 ##add simple unique id (uid) and map back to id
 dt[, uid := 1 : .N, meta = TRUE]
@@ -79,33 +89,19 @@ ggetho(dt, aes(z=activity)) +
   stat_tile_etho() +
   stat_ld_annotations()
 
-## curate dead animals or when animals die
-dt_curated <- curate_dead_animals(dt, prop_immobile = 0.001)
+#change dt to dt_curated because we manually curated when loading in data
 
-##curate animals that did not live the whole time
-# we make a summary table of all lifespan for each animals
-lifespan_dt <- dt_curated[, .(lifespan = max(t)), by=id]
-# we filter this table for lifespan>2 and we keep the id
-valid_ids <- lifespan_dt[lifespan > days(4), id]
-# we apply this filter
-dt_curated <- dt_curated[id %in% valid_ids]
-summary(dt_curated)
+dt_curated <- dt
 
-ggetho(dt_curated, aes(z=activity)) +
+ggetho(dt_curated, aes(z=activity)) + #should be the same as above
   stat_tile_etho() +
   stat_ld_annotations()
-
-## see which flies were removed
-setdiff(dt[, id, meta=T],
-        dt_curated[, id, meta=T])
 
 
 ## add experiment phase information to each segment of experiment
 dt_curated <- dt_curated[, phase := ifelse(t %between% c(days(0), days(3)), "LD1",
-                                           ifelse(t %between% c(days(3), days(6)), "FR1",
-                                                  ifelse(t %between% c(days(6), days(12)), "VS",
-                                                         ifelse(t %between% c(days(12.5), days(20)), "FR2",
-                                                                "Not-used"))))]
+                                           ifelse(t %between% c(days(3), days(8)), "FR",
+                                                  "Not-used"))]
 
 
 ##interactively plot data and adjust phase days as necessary
@@ -137,7 +133,7 @@ peak_summary <- rejoin(dt_peaks)
 peak_summary[, peak_no := as.factor(peak_no)]
 
 grouped_ggbetweenstats(
-  data = peak_summary[FR1_rhythmic == TRUE & phase %in% c("FR1")],
+  data = peak_summary[FR_rhythmic == TRUE & phase %in% c("FR")],
   x = entrainment,
   y = peak_time,
   grouping.var = genotype,
@@ -145,57 +141,29 @@ grouped_ggbetweenstats(
   title.text = "peak phase FR1"
 )
 
-grouped_ggbetweenstats(
-  data = peak_summary[FR2_rhythmic == TRUE & phase %in% c("FR2")],
-  x = entrainment,
-  y = peak_time,
-  grouping.var = genotype,
-  mean.plotting = FALSE,
-  title.text = "peak phase FR2"
-)
 
-dt_peak_sum_id <- peak_summary[phase %in% c("FR1", "FR2"), .(meantime = mean(peak_time),
-                                                             medtime = median(peak_time),
-                                                             n = length(peak_time),
-                                                             sdphase = sd(peak_time)),
+
+dt_peak_sum_id <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
+                                                     medtime = median(peak_time),
+                                                     n = length(peak_time),
+                                                     sdphase = sd(peak_time)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
-dt_peak_sum <- peak_summary[phase %in% c("FR1", "FR2"), .(meantime = mean(peak_time),
-                                                          medtime = median(peak_time),
-                                                          n = length(peak_time),
-                                                          sdphase = sd(peak_time)),
+dt_peak_sum <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
+                                                  medtime = median(peak_time),
+                                                  n = length(peak_time),
+                                                  sdphase = sd(peak_time)),
                             by = c("genotype", "sex", "entrainment", "phase")]
 
 
 grouped_ggbetweenstats(
-  data = dt_peak_sum_id[phase %in% c("FR1")],
+  data = dt_peak_sum_id[phase %in% c("FR")],
   x = entrainment,
   y = medtime,
   grouping.var = genotype,
   mean.plotting = FALSE,
   title.text = "peak phase FR1"
 )
-
-grouped_ggbetweenstats(
-  data = dt_peak_sum_id[phase %in% c("FR2")],
-  x = entrainment,
-  y = medtime,
-  grouping.var = genotype,
-  mean.plotting = FALSE,
-  title.text = "peak phase FR2"
-)
-
-ggplot(data = dt_peak_sum_id[phase %in% "FR2"], aes(x = phase, y = medtime, colour = entrainment)) +
-  geom_point() +
-  geom_segment(data = dt_peak_sum[phase %in% "FR2"], aes(x = 0, y = medtime, yend = medtime, xend = phase), linewidth = 1.5) +
-  coord_polar(theta = "y", start = 0) +
-  scale_y_continuous(limits = c(0,24), breaks = seq(0, 24, 6)) +
-  scale_colour_brewer(type = "qual", palette = "Dark2") +
-  labs(x = "Rhythmicity (A.U.)", y = "Peak phase (H)") +
-  #facet_wrap(. ~ genotype) +
-  theme_minimal_grid()
-
-
 
 
 ## autocorrelation
@@ -244,16 +212,16 @@ setmeta(dt_auto, dt_curated[, meta = TRUE])
 auto_summary <- rejoin(dt_auto)
 
 
-dt_auto_sum_id <- auto_summary[phase %in% c("FR1", "FR2") &
+dt_auto_sum_id <- auto_summary[phase %in% c("FR") &
                                  peak_no == 3, .(medheight = median(height)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
-dt_auto_sum <- auto_summary[phase %in% c("FR1", "FR2") &
+dt_auto_sum <- auto_summary[phase %in% c("FR") &
                               peak_no == 3, .(medheight = median(height)),
                             by = c("genotype", "sex", "entrainment", "phase")]
 
 grouped_ggbetweenstats(
-  data = dt_auto_sum_id[phase %in% c("FR1")],
+  data = dt_auto_sum_id[phase %in% c("FR")],
   x = entrainment,
   y = medheight,
   grouping.var = genotype,
@@ -261,14 +229,6 @@ grouped_ggbetweenstats(
   title.text = "peak phase FR1"
 )
 
-grouped_ggbetweenstats(
-  data = dt_auto_sum_id[phase %in% c("FR2")],
-  x = entrainment,
-  y = medheight,
-  grouping.var = genotype,
-  mean.plotting = FALSE,
-  title.text = "peak phase FR2"
-)
 
 ## 
 
@@ -276,20 +236,10 @@ dt_summary <- merge.data.table(dt_peak_sum_id, dt_auto_sum_id)
 
 dt_sum <- merge.data.table(dt_peak_sum, dt_auto_sum)
 
-ggplot(data = dt_summary[phase %in% "FR2"], aes(x = medheight, y = medtime, colour = entrainment)) +
-  geom_point(alpha = 0.5) +
-  geom_segment(data = dt_sum[phase %in% "FR2"], aes(x = 0, y = medtime, yend = medtime, xend = medheight), linewidth = 1.5) +
-  coord_polar(theta = "y", start = 0) +
-  scale_y_continuous(limits = c(0,24), breaks = seq(0, 24, 6)) +
-  scale_x_continuous(limits = c(0,0.4), breaks = seq(0, 0.5, 0.1)) +
-  scale_colour_brewer(type = "qual", palette = "Dark2") +
-  labs(x = "Rhythmicity (A.U.)", y = "Peak phase (H)") +
-  # facet_wrap(. ~ genotype) +
-  theme_minimal_grid()
 
 ##periodogram - FR1
 
-dt_pgram_FR1 <- periodogram(moving, dt_curated[phase == "FR1"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
+dt_pgram_FR1 <- periodogram(moving, dt_curated[phase == "FR"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
 
 dt_pgram_FR1 <-find_peaks(dt_pgram_FR1)
 
@@ -311,40 +261,18 @@ grouped_ggbetweenstats(
 
 
 
-##periodogram - FR2
-
-dt_pgram_FR2 <- periodogram(moving, dt_curated[phase == "FR2"], FUN = chi_sq_periodogram, resample_rate = 1/mins(1))
-
-dt_pgram_FR2 <-find_peaks(dt_pgram_FR2)
-
-ggperio(dt_pgram_FR2, aes(y = power - signif_threshold, colour=genotype)) + 
-  stat_pop_etho() +
-  geom_hline(yintercept = 0) +
-  facet_wrap(genotype ~ entrainment)
-
-dt_pgram_FR2_sum <- rejoin(dt_pgram_FR2[peak == 1])
-dt_pgram_FR2_sum[, period_h := period/hours(1)]
-
-grouped_ggbetweenstats(
-  data = dt_pgram_FR2_sum,
-  x = entrainment,
-  y = period_h,
-  grouping.var = genotype,
-  title.text = "Chi^2 periodogram FR2"
-)
-
-
 #final visualizations 
 
-ggetho(dt_curated, aes(x=t, y=moving)) + stat_pop_etho() +
+ggetho(dt, aes(x=t, y=moving)) + 
+  stat_pop_etho() +
   facet_grid(genotype ~ .) #prop moving
 
-ggetho(dt, aes(x=t, y=activity)) + stat_pop_etho() +
-  facet_grid(genotype ~ .)  +
-  labs(title= "Injected Activity", y = "Beam crosses (per minute)")
-    #beam breaks 
+ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
+  stat_pop_etho() +
+  facet_grid(genotype ~ .) +
+  labs(title = "Injected Activity", x = "Day", y = "Beam crosses (per minute)")
 
-ggetho(dt_curated, aes(x=t, z=moving)) + stat_bar_tile_etho()
+ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 
 #difference in periods 
 
@@ -366,21 +294,19 @@ ggplot(summary_dt, aes(genotype, period, fill= genotype)) +
 
 ggperio(per_xsq_dt) + geom_line(aes(group = id, colour=genotype))
 
-pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in GFP and 9770 per
+pairwise.wilcox.test(summary_dt$period, summary_dt$genotype) #no difference in GFP and 5681 per
 
-
-##differences in total activity 
 
 ##differences in total activity 
 
 #create new variable
 
-dt_curated[str_detect(id, "Monitor78"), genotype := "GFP"]
-dt_curated[str_detect(id, "Monitor77"), genotype := "9770"]
+dt_curated[str_detect(id, "Monitor81"), genotype := "GFP"]
+dt_curated[str_detect(id, "Monitor82"), genotype := "5681"]
 
 dt_curated[, total_activity := sum(activity), by = id]
 
-wilcox.test(dt_curated$total_activity ~ dt_curated$genotype)
+pairwise.wilcox.test(dt_curated$total_activity, dt_curated$genotype)
 
 ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
   geom_point() +
@@ -402,7 +328,7 @@ ggplot(data = dt_curated[day == 2], aes(x = id, y = daily_activity, color = geno
 
 wilcox.test(dt_curated$daily_activity[dt_curated$day==2] ~ dt_curated$genotype[dt_curated$day==2])
 
-kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2])
+kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2]) #this would be for more than 2 groups
 
 
 #day 4
@@ -414,9 +340,25 @@ wilcox.test(dt_curated$daily_activity[dt_curated$day==4] ~ dt_curated$genotype[d
 
 kruskal.test(dt_curated$daily_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
 
-##by day swarming time
+
+
+
+#average activity for each genotype at each time interval (hour?)
+#add in as geom_point to this plot. then do stats tests? 
+
+ggperio(dt_pgram_FR1, aes(period, power, colour=genotype)) + 
+  geom_line() +
+  geom_peak(colour="blue") +
+  facet_wrap( ~ uid) 
+
+## differences in activity at swarming time 
 
 dt_curated[, hour := floor(t/3600)] 
+
+
+
+##by day swarming time
+
 dt_curated[, hourly_activity := sum(activity), by = .(id,dt_curated$hour)]
 dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_curated$hour)]
 
@@ -428,6 +370,12 @@ ggplot(data = dt_curated[day == 2]) +
 ggplot(data = dt_curated[day == 4]) +
   geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
   facet_wrap(~ genotype)
+
+#all days 
+ggplot(data = dt_curated, aes(x = hour, y = avg_hourly_activity, color = genotype)) +
+  geom_line() +
+  facet_wrap(~ genotype)
+
 
 #5 minute intervals
 
