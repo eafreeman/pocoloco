@@ -270,6 +270,7 @@ ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
 
+
 #difference in periods 
 
 per_xsq_dt <- periodogram(activity, 
@@ -487,4 +488,25 @@ figure <- ggarrange(a, b,
                     ncol = 2, nrow = 1)
 figure
 
+
+
+# duration of swarming 
+
+swarm_dur <- dt_curated[hour == 109] %>%
+  group_by(genotype) %>%
+  mutate(move = activity !=0) %>%
+  mutate(dur = sum(move)) #gives seconds that the mosquitoes were active
+
+
+dt_curated[, minute := floor(t/60)] #create day variable
+
+dt_curated[, minute_activity := sum(activity), by = .(id,dt_curated$minute)]
+dt_curated[, avg_minute_activity := mean(minute_activity), by = .(genotype,dt_curated$minute)]
+
+
+
+ggplot(data = dt_curated[hour == 109]) +
+  geom_line(aes(x = minute, y= avg_minute_activity, color = genotype)) +
+  facet_wrap(~ genotype)  +
+  labs(title = "Swarming Time Day 4")
 
