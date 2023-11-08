@@ -13,7 +13,7 @@ library(shiny)
 library(tidyverse)
 library(plotly)
 library(ggthemes)
-
+library(ggpubr)
 ## use this file to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
 
@@ -265,6 +265,7 @@ ggetho(dt, aes(x=t, y=moving)) +
 ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
   facet_grid(genotype ~ .) +
+  stat_ld_annotations() +
   labs(title = "Injected Activity", x = "Day", y = "Beam crosses (per minute)")
 
 ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
@@ -304,12 +305,22 @@ dt_curated[str_detect(id, "Monitor81"), genotype := "not injected"]
 dt_curated[, total_activity := sum(activity), by = id]
 
 pairwise.wilcox.test(dt_curated$total_activity, dt_curated$genotype)
+t.test(dt_curated$total_activity[dt_curated$genotype == "injected"], 
+       dt_curated$total_activity[dt_curated$genotype == "not injected"])
+
 
 ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
   geom_point() +
   geom_hline(yintercept = mean(dt_curated$total_activity)) +
   theme(axis.text.x = element_blank())
 
+
+ggplot(data = dt_curated, aes(x = id, y = total_activity, color = genotype)) +
+  geom_point() +
+  facet_wrap( ~ genotype) +
+  geom_hline(yintercept = mean(dt_curated$total_activity[dt_curated$genotype == "injected"])) +
+  geom_hline(yintercept = mean(dt_curated$total_activity[dt_curated$genotype == "not injected"])) +
+  theme(axis.text.x = element_blank())
 
 #differences in total activity per day
 
@@ -327,16 +338,17 @@ wilcox.test(dt_curated$daily_activity[dt_curated$day==2] ~ dt_curated$genotype[d
 
 kruskal.test(dt_curated$daily_activity[dt_curated$day==2], dt_curated$genotype[dt_curated$day==2]) #this would be for more than 2 groups
 
+t.test(dt_curated$total_activity[dt_curated$genotype == "injected"], 
+       dt_curated$total_activity[dt_curated$genotype == "not injected"])
 
 #day 4
 ggplot(data = dt_curated[day == 4], aes(x = id, y = daily_activity, color = genotype)) +
   geom_point() +
   geom_hline(yintercept = mean(dt_curated$daily_activity))
 
-wilcox.test(dt_curated$daily_activity[dt_curated$day==4] ~ dt_curated$genotype[dt_curated$day==4])
+wilcox.test(dt_curated$daily_activity[dt_curated$day==2] ~ dt_curated$genotype[dt_curated$day==2])
 
 kruskal.test(dt_curated$daily_activity[dt_curated$day==4], dt_curated$genotype[dt_curated$day==4])
-
 
 
 
@@ -352,7 +364,7 @@ ggperio(dt_pgram_FR1, aes(period, power, colour=genotype)) +
 
 dt_curated[, hour := floor(t/3600)] 
 
-
+dt_curated[, half := floor(t/1800)] 
 
 ##by day swarming time
 
@@ -362,16 +374,40 @@ dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_cu
 
 ggplot(data = dt_curated[day == 2]) +
   geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
-  facet_wrap(~ genotype)
+  facet_wrap(~ genotype)  +
+  labs(title = "Swarming Time Day 2")
 
 ggplot(data = dt_curated[day == 4]) +
   geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
-  facet_wrap(~ genotype)
+  facet_wrap(~ genotype) +
+  labs(title = "Swarming Time Day 4")
+
+ggplot(data = dt_curated[day == 6]) +
+  geom_line(aes(x = hour, y= avg_hourly_activity, color = genotype)) +
+  facet_wrap(~ genotype) +
+  labs(title = "Swarming Time Day 6")
 
 #all days 
 ggplot(data = dt_curated, aes(x = hour, y = avg_hourly_activity, color = genotype)) +
   geom_line() +
-  facet_wrap(~ genotype)
+  facet_wrap(~ genotype) +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment") +
+  scale_color_manual(values = c("#8DB9CA", "#BBC592")) +
+  theme_few()
+
+
+##### 30 min intervals 
+
+dt_curated[, halfhourly_activity := sum(activity), by = .(id,dt_curated$half)]
+dt_curated[, avg_halfhourly_activity := mean(halfhourly_activity), by = .(genotype,dt_curated$half)]
+
+ggplot(data = dt_curated) +
+  #geom_rect(aes(xmin = , xmax = ,ymin = -Inf, ymax = Inf))+
+  geom_line(aes(x = half, y = avg_halfhourly_activity, color = genotype)) +
+  facet_wrap(~ genotype) +
+  labs(y = "Average Half Hourly Beam Breaks", x = "Hour") +
+  scale_color_manual(values = c("#8DB9CA", "#BBC592")) +
+  theme_few()
 
 
 #5 minute intervals
@@ -386,6 +422,28 @@ ggplot(data = dt_curated[day == 2]) +
   facet_wrap(~ genotype)
 
 
+###t test hell
+
+dt_inj <- dt_curated %>% subset(genotype %in% "injected")
+dt_control <- dt_curated %>% subset(genotype %in% "not injected")
+
+#day 6 swarming time 
+t.test(dt_inj$hourly_activity[dt_curated$hour==157], dt_control$hourly_activity[dt_curated$hour==157])
+
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==133], dt_control$hourly_activity[dt_curated$hour==133])
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==109], dt_control$hourly_activity[dt_curated$hour==109])
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==85], dt_control$hourly_activity[dt_curated$hour==85])
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==61], dt_control$hourly_activity[dt_curated$hour==61])
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==37], dt_control$hourly_activity[dt_curated$hour==37])
+
+t.test(dt_inj$hourly_activity[dt_curated$hour==13], dt_control$hourly_activity[dt_curated$hour==13])
+
+
 
 ############ MATING PLOTS 
 
@@ -398,8 +456,35 @@ non_mate <- non_mate %>% mutate(females = 47, mated = 15, group = "not injected"
 mating <- full_join(inj_mate, non_mate)
 
 
-ggplot(data = mating) +
+a <- ggplot(data = mating) +
   geom_col(aes(x = group, y = females), fill = c("#BFD7EA", "#CBC3E4")) +
   geom_col(aes(x = group, y = mated, fill = group), fill = c("#326B9A", "#533F8D")) +
-  labs(x = "Group", y = "Number of Mosquitoes", title = "Mating Experiment") +
+  labs(x = "Group", y = "Number of Mosquitoes", title = "3 Swarming Periods") +
   theme_few()
+
+
+
+#mating take 2
+
+inj_mate <- tibble(males = 50)
+non_mate <- tibble(males = 50)
+
+inj_mate <- inj_mate %>% mutate(females = 47, mated = 16, group = "injected")
+non_mate <- non_mate %>% mutate(females = 54, mated = 26, group = "not injected")
+
+mating <- full_join(inj_mate, non_mate)
+
+
+b <- ggplot(data = mating) +
+  geom_col(aes(x = group, y = females), fill = c("#BFD7EA", "#CBC3E4")) +
+  geom_col(aes(x = group, y = mated, fill = group), fill = c("#326B9A", "#533F8D")) +
+  labs(x = "Group", y = "Number of Mosquitoes", title = "4 Swarming Periods") +
+  theme_few()
+
+
+figure <- ggarrange(a, b,
+                    labels = c("A", "B"),
+                    ncol = 2, nrow = 1)
+figure
+
+
