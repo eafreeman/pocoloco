@@ -510,3 +510,18 @@ ggplot(data = dt_curated[hour == 109]) +
   facet_wrap(~ genotype)  +
   labs(title = "Swarming Time Day 4")
 
+
+
+
+## swarming, by day, just non-inj
+
+ggplot(data = dt_curated, aes(x = hour, y = avg_hourly_activity, color = genotype)) +
+  geom_rect(aes(xmin = 12 , xmax= 24 , ymin = -Inf, ymax = Inf), fill = "grey85", color = "grey75") +
+  geom_rect(aes(xmin = 36 , xmax= 48 , ymin = -Inf, ymax = Inf), fill = "grey85", color = "grey75") +
+  geom_rect(aes(xmin = 60 , xmax= Inf , ymin = -Inf, ymax = Inf), fill = "grey85", color = "grey75") +
+  geom_line(aes(x = hour, y = avg_hourly_activity), color = "#8DB9CA", linewidth = 1.5) +
+  facet_wrap(~ genotype) +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment", title = "Hourly activity") +
+  theme_few()
+
+
