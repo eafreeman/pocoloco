@@ -26,6 +26,8 @@ library(ggplot2)
 library(ggthemes)
 library(ggpubr)
 library(stringr)
+library(mdthemes)
+library(viridis)
 #can add other packages but DO NOT add "Lubridate"
 
 ################# Metadata #############################
@@ -130,15 +132,18 @@ dt_peaks <- peak_returnR(dt_curated, filterHours = 16, minpeakdist = 18)
 setkeyv(dt_peaks, "id")
 setmeta(dt_peaks, dt_curated[, meta = TRUE])
 
-#create bins for activity data
+#Creating time and activity variables
 
 dt_curated[, total_activity := sum(activity), by = id]
 
 dt_curated[, day := floor(t/86400)] #create day variable
 dt_curated[, hour := floor(t/3600)] #hour
-dt_curated[, half := floor(t/1800)] #half housr
+dt_curated[, half := floor(t/1800)] #half hour
+dt_curated[, min := floor(t/60)]
 
 dt_curated[, daily_activity := sum(activity), by = .(id,dt_curated$day)]
+
+dt_curated[, avg_min_activity := mean(activity), by = .(genotype,min)]
 
 dt_curated[, hourly_activity := sum(activity), by = .(id,dt_curated$hour)]
 dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_curated$hour)]
@@ -146,6 +151,8 @@ dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_cu
 dt_curated[, halfhourly_activity := sum(activity), by = .(id,dt_curated$half)]
 dt_curated[, avg_halfhourly_activity := mean(halfhourly_activity), by = .(genotype,dt_curated$half)]
 
+dt_curated[, ZT := floor(hour - (day*24))]
+dt_curated[, ZT_min := floor(t - (day*86400))]
 
 ################ Activity Plots ##########################
 
@@ -161,21 +168,68 @@ ggetho(dt_curated, aes(x=t, y=activity)) + #beam breaks
   stat_pop_etho() +
   facet_grid(genotype ~ .) +
   stat_ld_annotations() +
-  labs(title = "Injected Activity", x = "Day", y = "Beam crosses (per minute)")
+  labs(title = "Activity", x = "Day", y = "Beam crosses (per minute)")
 
-ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho()
+ggetho(dt, aes(x=t, z=moving)) + stat_bar_tile_etho() #individuals
 
-#stylized plot example
-c <- c("#326B9A", "#533F8D")
-ggetho(dt_curated, aes(x=t, y=avg_halfhourly_activity, color = genotype)) +
+ggetho(dt, aes(x=t, z=moving, y = genotype)) + #grouped
+  stat_bar_tile_etho() + 
   stat_ld_annotations() +
-  stat_ld_annotations(height=1, alpha=0.2, outline = NA) +
-  stat_pop_etho() +
-  ylim(0, 150) +
-  labs(y = "Average Half Hourly Activity") +
-  scale_color_manual(values = c) +
-  facet_wrap(~genotype) +
+  stat_ld_annotations(x_limits = days(c(5,9)), 
+                      ld_colours = c("darkgrey", "black" )) +
+  labs(y = "", title = "Actogram") +
   theme_few()
+
+#Beam breaks by hour
+
+anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(215), 6))
+
+ggplot() +
+  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), fill = "grey85", color = "grey75") +
+  geom_bar(data = dt_curated %>% filter(day %in% 2:7), aes(x = ZT, y = avg_hourly_activity, fill = genotype), stat = "summary", fun = "mean", position= "dodge") +
+  facet_wrap(~ day) +
+  scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
+  scale_y_continuous(limits=c(0, 215), expand = c(0,0)) +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment", title = "Hourly activity") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_few()
+
+#Beam breaks by minute
+
+anno_min <- data.frame(day = c(2:7), x1 = rep(c(43200, 0), c(3,3)), x2 = rep(c(86400), 6), y1 = rep(c(0), each = 6), y2 = rep(c(12), each = 6))
+
+ggplot() +
+  geom_rect(data = anno_min, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), fill = "grey85", color = "grey75") +
+  geom_line(data = dt_curated %>% filter(day %in% 2:7), aes(x = ZT_min, y = avg_min_activity, color = genotype, group = genotype), linewidth = .35) +
+  facet_wrap(~ day) +
+  scale_x_continuous(breaks = seq(0, 86400, by = 14400), labels = seq(0,24, by = 4), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0, 12), breaks = seq(0, 12, by = 2), expand = c(0,0)) +
+  labs(y = "Average Beam Breaks (per minute)", x = "ZT", color = "Treatment", title = "Activity per Minute") +
+  scale_color_brewer(palette = "Set2") +
+  theme_few()
+
+#double actograms per genotype
+
+dt_5681 <- filter(dt_curated, genotype == "ds5681")
+dt_gfp <- filter(dt_curated, genotype == "dsGFP")
+dt_not <- filter(dt_curated, genotype == "not injected")
+
+a <- ggetho(dt_5681, aes(x=t, z=moving), multiplot = 2) + #5681
+  stat_bar_tile_etho() +
+  ggtitle("*dsAgDopEcR*") +
+  md_theme_minimal()
+
+b <- ggetho(dt_gfp, aes(x=t, z=moving), multiplot = 2) + #GFP
+  stat_bar_tile_etho() +
+  ggtitle("*dsGFP*") +
+  md_theme_minimal()
+
+c <- ggetho(dt_not, aes(x=t, z=moving), multiplot = 2) + #not injected
+  stat_bar_tile_etho() +
+  ggtitle("Not Injected") +
+  md_theme_minimal()
+
+ggarrange(a,b,c, labels = c("A", "B", "C"))
 
 ################ Activity Statistics #########################
 

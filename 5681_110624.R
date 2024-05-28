@@ -27,6 +27,7 @@ library(ggthemes)
 library(ggpubr)
 library(stringr)
 library(mdthemes)
+library(viridis)
 #can add other packages but DO NOT add "Lubridate"
 
 ################# Metadata #############################
@@ -34,28 +35,28 @@ library(mdthemes)
 ## use this section to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
 
-metadata <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
-                                    "Data/EF_080524_5681/Monitor82.txt",
-                                    "Data/EF_080524_5681/Monitor83.txt"), each = 32),
+metadata <- data.table(file = rep(c("Data/EF_110624_5681/Monitor81.txt",
+                                    "Data/EF_110624_5681/Monitor82.txt",
+                                    "Data/EF_110624_5681/Monitor83.txt"), each = 32),
                        ## a unique experiment ID if you want to analyse across experiments
                        exp_ID = rep(c("5681"), each = 96),
                        ## a link to the environmental monitor file use in the experiment
-                       env_monitor = rep(c("Data/EF_080524_5681/Monitor94.txt"), each = 96),
+                       env_monitor = rep(c("Data/EF_110624_5681/Monitor94.txt"), each = 96),
                        incubator = rep(c("1_Behavioural_room"), each = 96),
                        ##entrainment = do these for each ZT 
                        entrainment = rep(c("LD_DD"), each = 96),
                        ##startdatetime at lights on day before 
                        start_datetime = 
-                         c(rep("2024-04-29 02:00:00", times = 96)),   #ZT0                  
+                         c(rep("2024-06-03 02:00:00", times = 96)),   #ZT0                  
                        ## experimental stop time
                        stop_datetime = 
-                         c(rep("2024-05-07 10:00:00", times = 96)),
+                         c(rep("2024-06-11 10:00:00", times = 96)),
                        ## this is the tube number position in each monitor
                        region_id = rep(1:32, 3),
                        ## the genotypes used in the experiment
-                       genotype = rep(c("dsGFP",
+                       genotype = rep(c("not_inj",
                                         "ds5681",
-                                        "not_inj"), each = 32),
+                                        "dsgfp"), each = 32),
                        ## sex of the individuals
                        sex = rep(c("M"), each=96),
                        ## temperature of experiment
@@ -64,8 +65,7 @@ metadata <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
                        status = rep(c("alive")))
 
 #add in which mosquitoes died 
-metadata[c(4,7,8,10,11,12,14,22,23, 24, 26,28,29,31,32,35,39,40,41,44,45,46,47,48,49,52,56,58,59,60,64,
-            71,81,82,85,86,87,90,91,92,96), status := "dead"]
+metadata[c(2,8,13,23,35,43,46,51,52,56,60,67,70,80,85,90,92,94,96), status := "dead"]
 
 ## can flip the status of "dead" or "alive depending on what is easiest for your data
 
@@ -102,9 +102,9 @@ dt_curated <- dt[, phase := ifelse(t %between% c(days(0), days(5)), "LD",
 
 #create bins for activity data
 
-dt_curated[str_detect(id, "Monitor81"), genotype := "dsGFP"]
+dt_curated[str_detect(id, "Monitor81"), genotype := "not injected"]
 dt_curated[str_detect(id, "Monitor82"), genotype := "ds5681"]
-dt_curated[str_detect(id, "Monitor83"), genotype := "not injected"]
+dt_curated[str_detect(id, "Monitor83"), genotype := "dsGFP"]
 
 ##interactively plot data and adjust phase days as necessary
 #runactPlottR()
@@ -129,7 +129,6 @@ dt_peaks <- peak_returnR(dt_curated, filterHours = 16, minpeakdist = 18)
 ##set key and link to metadata
 setkeyv(dt_peaks, "id")
 setmeta(dt_peaks, dt_curated[, meta = TRUE])
-
 
 #Creating time and activity variables
 
@@ -181,28 +180,32 @@ ggetho(dt, aes(x=t, z=moving, y = genotype)) + #grouped
 
 #Beam breaks by hour
 
-anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(300), 6))
+anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(350), 6))
 
 ggplot() +
-  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), fill = "grey85", color = "grey75") +
-  geom_bar(data = dt_curated %>% filter(day %in% 2:7), aes(x = ZT, y = avg_hourly_activity, fill = genotype), stat = "summary", fun = "mean", position= "dodge") +
+  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), 
+            fill = "grey85", color = "grey75") +
+  geom_bar(data = dt_curated %>% filter(day %in% 2:7), 
+           aes(x = ZT, y = avg_hourly_activity, fill = genotype), 
+           stat = "summary", fun = "mean", position= "dodge") +
   facet_wrap(~ day) +
   scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
-  scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
-  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment", title = "Hourly activity") +
+  scale_y_continuous(limits=c(0, 350), expand = c(0,0)) +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment", 
+       title = "Hourly activity") +
   scale_fill_brewer(palette = "Set2") +
   theme_few()
 
 #Beam breaks by minute
 
-anno_min <- data.frame(day = c(2:7), x1 = rep(c(43200, 0), c(3,3)), x2 = rep(c(86400), 6), y1 = rep(c(0), each = 6), y2 = rep(c(12), each = 6))
+anno_min <- data.frame(day = c(2:7), x1 = rep(c(43200, 0), c(3,3)), x2 = rep(c(86400), 6), y1 = rep(c(0), each = 6), y2 = rep(c(14), each = 6))
 
 ggplot() +
   geom_rect(data = anno_min, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), fill = "grey85", color = "grey75") +
   geom_line(data = dt_curated %>% filter(day %in% 2:7), aes(x = ZT_min, y = avg_min_activity, color = genotype, group = genotype), linewidth = .35) +
   facet_wrap(~ day) +
   scale_x_continuous(breaks = seq(0, 86400, by = 14400), labels = seq(0,24, by = 4), expand = c(0,0)) +
-  scale_y_continuous(limits = c(0, 12), breaks = seq(0, 12, by = 2), expand = c(0,0)) +
+  scale_y_continuous(limits = c(0, 14), breaks = seq(0, 14, by = 2), expand = c(0,0)) +
   labs(y = "Average Beam Breaks (per minute)", x = "ZT", color = "Treatment", title = "Activity per Minute") +
   scale_color_brewer(palette = "Set2") +
   theme_few()

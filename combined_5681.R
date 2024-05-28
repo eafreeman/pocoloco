@@ -7,6 +7,8 @@
 ##                                        ##
 ############################################
 
+## all 5681 trials, big ole' dataset version
+
 #have a look at rethomics documentation: https://rethomics.github.io/
 
 library(data.table)
@@ -27,14 +29,84 @@ library(ggthemes)
 library(ggpubr)
 library(stringr)
 library(mdthemes)
+library(viridis)
+library(dplyr)
 #can add other packages but DO NOT add "Lubridate"
 
-################# Metadata #############################
+################# Metadata 1 #############################
 
 ## use this section to to create a metadata structure that includes all the important information about your experiment
 ## and any metavariable you may want to analyse across all your different experimental groups
 
-metadata <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
+metadata1 <- data.table(file = rep(c("Data/EF_210524_5681/Monitor81.txt",
+                                    "Data/EF_210524_5681/Monitor82.txt",
+                                    "Data/EF_210524_5681/Monitor83.txt"), each = 32),
+                       ## a unique experiment ID if you want to analyse across experiments
+                       exp_ID = rep(c("5681"), each = 96),
+                       ## a link to the environmental monitor file use in the experiment
+                       env_monitor = rep(c("Data/EF_210524_5681/Monitor94.txt"), each = 96),
+                       incubator = rep(c("1_Behavioural_room"), each = 96),
+                       ##entrainment = do these for each ZT 
+                       entrainment = rep(c("LD_DD"), each = 96),
+                       ##startdatetime at lights on day before 
+                       start_datetime = 
+                         c(rep("2024-05-13 02:00:00", times = 96)),   #ZT0                  
+                       ## experimental stop time
+                       stop_datetime = 
+                         c(rep("2024-05-21 10:00:00", times = 96)),
+                       ## this is the tube number position in each monitor
+                       region_id = rep(1:32, 3),
+                       ## the genotypes used in the experiment
+                       genotype = rep(c("not_inj",
+                                        "ds5681",
+                                        "dsgfp"), each = 32),
+                       ## sex of the individuals
+                       sex = rep(c("M"), each=96),
+                       ## temperature of experiment
+                       temp = rep(c("28"), each = 96),
+                       ## whether or not the individual survived to the end: d = dead, a = alive
+                       status = rep(c("alive")))
+
+#add in which mosquitoes died 
+metadata1[c(5,7,19,23,25,26,28,32,38,40,41,46,56,58,62,63,64,65,66,68,72,74,81,82,85,86,88,89,93,
+           94,95), status := "dead"]
+
+## can flip the status of "dead" or "alive depending on what is easiest for your data
+
+## add as many other variables as you like you should end up with a data.table that has 1 row for each individual activity
+## tube in the experiment with a column for each of the metavariables you include.
+
+################# Data Cleaning ###########################
+
+##set directory of DAM monitor files
+
+data_dir <- "./data"
+
+##link meta and raw monitor files
+
+metadata1 <- link_dam_metadata(metadata1, result_dir = data_dir)
+
+##load raw monitor files
+
+dt1 <- load_dam(metadata1[status == "alive"], FUN = sleepr::sleep_dam_annotation)
+
+dt1[str_detect(id, "Monitor81"), genotype := "not injected"]
+dt1[str_detect(id, "Monitor82"), genotype := "ds5681"]
+dt1[str_detect(id, "Monitor83"), genotype := "dsGFP"]
+
+##add simple unique id (uid) and map back to id
+dt1[, uid := 1 : .N, meta = TRUE]
+dt1[, .(id, uid) , meta = TRUE]
+
+
+
+
+################# Metadata 2#############################
+
+## use this section to to create a metadata structure that includes all the important information about your experiment
+## and any metavariable you may want to analyse across all your different experimental groups
+
+metadata2 <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
                                     "Data/EF_080524_5681/Monitor82.txt",
                                     "Data/EF_080524_5681/Monitor83.txt"), each = 32),
                        ## a unique experiment ID if you want to analyse across experiments
@@ -64,8 +136,8 @@ metadata <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
                        status = rep(c("alive")))
 
 #add in which mosquitoes died 
-metadata[c(4,7,8,10,11,12,14,22,23, 24, 26,28,29,31,32,35,39,40,41,44,45,46,47,48,49,52,56,58,59,60,64,
-            71,81,82,85,86,87,90,91,92,96), status := "dead"]
+metadata2[c(4,7,8,10,11,12,14,22,23, 24, 26,28,29,31,32,35,39,40,41,44,45,46,47,48,49,52,56,58,59,60,64,
+           71,81,82,85,86,87,90,91,92,96), status := "dead"]
 
 ## can flip the status of "dead" or "alive depending on what is easiest for your data
 
@@ -80,31 +152,84 @@ data_dir <- "./data"
 
 ##link meta and raw monitor files
 
-metadata <- link_dam_metadata(metadata, result_dir = data_dir)
+metadata2 <- link_dam_metadata(metadata2, result_dir = data_dir)
 
 ##load raw monitor files
 
-dt <- load_dam(metadata[status == "alive"], FUN = sleepr::sleep_dam_annotation)
+dt2 <- load_dam(metadata2[status == "alive"], FUN = sleepr::sleep_dam_annotation)
 
 ##add simple unique id (uid) and map back to id
-dt[, uid := 1 : .N, meta = TRUE]
-dt[, .(id, uid) , meta = TRUE]
+dt2[, uid := 1 : .N, meta = TRUE]
+dt2[, .(id, uid) , meta = TRUE]
 
-##visualize all monitor data to see abnormalities
-ggetho(dt, aes(z=activity)) +
-  stat_tile_etho() +
-  stat_ld_annotations()
+
+#create bins for activity data
+
+dt2[str_detect(id, "Monitor81"), genotype := "dsGFP"]
+dt2[str_detect(id, "Monitor82"), genotype := "ds5681"]
+dt2[str_detect(id, "Monitor83"), genotype := "not injected"]
+
+
+############### rep 3 ############################
+
+
+metadata3 <- data.table(file = rep(c("Data/EF_110624_5681/Monitor81.txt",
+                                    "Data/EF_110624_5681/Monitor82.txt",
+                                    "Data/EF_110624_5681/Monitor83.txt"), each = 32),
+                       ## a unique experiment ID if you want to analyse across experiments
+                       exp_ID = rep(c("5681"), each = 96),
+                       ## a link to the environmental monitor file use in the experiment
+                       env_monitor = rep(c("Data/EF_110624_5681/Monitor94.txt"), each = 96),
+                       incubator = rep(c("1_Behavioural_room"), each = 96),
+                       ##entrainment = do these for each ZT 
+                       entrainment = rep(c("LD_DD"), each = 96),
+                       ##startdatetime at lights on day before 
+                       start_datetime = 
+                         c(rep("2024-06-03 02:00:00", times = 96)),   #ZT0                  
+                       ## experimental stop time
+                       stop_datetime = 
+                         c(rep("2024-06-11 10:00:00", times = 96)),
+                       ## this is the tube number position in each monitor
+                       region_id = rep(1:32, 3),
+                       ## the genotypes used in the experiment
+                       genotype = rep(c("not_inj",
+                                        "ds5681",
+                                        "dsgfp"), each = 32),
+                       ## sex of the individuals
+                       sex = rep(c("M"), each=96),
+                       ## temperature of experiment
+                       temp = rep(c("28"), each = 96),
+                       ## whether or not the individual survived to the end: d = dead, a = alive
+                       status = rep(c("alive")))
+
+#add in which mosquitoes died 
+metadata3[c(2,8,13,23,35,43,46,51,52,56,60,67,70,80,85,90,92,94,96), status := "dead"]
+
+data_dir <- "./data"
+
+##link meta and raw monitor files
+
+metadata3 <- link_dam_metadata(metadata3, result_dir = data_dir)
+
+dt3 <- load_dam(metadata3[status == "alive"], FUN = sleepr::sleep_dam_annotation)
+
+##add simple unique id (uid) and map back to id
+dt3[, uid := 1 : .N, meta = TRUE]
+dt3[, .(id, uid) , meta = TRUE]
+
+dt3[str_detect(id, "Monitor81"), genotype := "not injected"]
+dt3[str_detect(id, "Monitor82"), genotype := "ds5681"]
+dt3[str_detect(id, "Monitor83"), genotype := "dsGFP"]
+
+################## ALL TOGETHER NOW ##########################
+
+dt_1 <- full_join(dt1, dt2)
+dt <- full_join(dt_1, dt3)
 
 ## add experiment phase information to each segment of experiment (calling this dt_curated)
 dt_curated <- dt[, phase := ifelse(t %between% c(days(0), days(5)), "LD",
                                    ifelse(t %between% c(days(5), days(8)), "FR",
                                           "Not-used"))]
-
-#create bins for activity data
-
-dt_curated[str_detect(id, "Monitor81"), genotype := "dsGFP"]
-dt_curated[str_detect(id, "Monitor82"), genotype := "ds5681"]
-dt_curated[str_detect(id, "Monitor83"), genotype := "not injected"]
 
 ##interactively plot data and adjust phase days as necessary
 #runactPlottR()
@@ -129,7 +254,6 @@ dt_peaks <- peak_returnR(dt_curated, filterHours = 16, minpeakdist = 18)
 ##set key and link to metadata
 setkeyv(dt_peaks, "id")
 setmeta(dt_peaks, dt_curated[, meta = TRUE])
-
 
 #Creating time and activity variables
 
@@ -180,17 +304,21 @@ ggetho(dt, aes(x=t, z=moving, y = genotype)) + #grouped
   theme_few()
 
 #Beam breaks by hour
-
+c <- c("#f768a1","#c51b8a", "#7a0177")
 anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(300), 6))
-
+#anno_hour <- data.frame(day = c(7), x1 = rep(c(0)), x2 = rep(c(24)), y1 = rep(c(0)), y2 = rep(c(50)))
 ggplot() +
-  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), fill = "grey85", color = "grey75") +
-  geom_bar(data = dt_curated %>% filter(day %in% 2:7), aes(x = ZT, y = avg_hourly_activity, fill = genotype), stat = "summary", fun = "mean", position= "dodge") +
+  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), 
+            fill = "grey85", color = "grey75") +
+  geom_bar(data = dt_curated %>% filter(day %in% 2:7), 
+           aes(x = ZT, y = avg_hourly_activity, fill = genotype), 
+           stat = "summary", fun = "mean", position= "dodge") +
   facet_wrap(~ day) +
   scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
   scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
-  labs(y = "Average Hourly Beam Breaks", x = "Hour", color = "Treatment", title = "Hourly activity") +
-  scale_fill_brewer(palette = "Set2") +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", fill = "Treatment", 
+       title = "Hourly activity", legend = "Treatment") +
+  scale_fill_manual(values = c) +
   theme_few()
 
 #Beam breaks by minute
@@ -232,15 +360,16 @@ ggarrange(a,b,c, labels = c("A", "B", "C"))
 
 ################ Activity Statistics #########################
 
+#these are wrong, df should only be 2! 
 kruskal.test(dt_curated$daily_activity, dt_curated$genotype) #all "genotypes"
 
 dt_curated_inj <- filter(dt_curated, genotype != "not injected") #filters for only injected
 kruskal.test(dt_curated_inj$daily_activity, dt_curated_inj$genotype) #just injected
 
-dt_curated_inj_LD <- filter(dt_curated_inj, day == 2:4)
+dt_curated_inj_LD <- filter(dt_curated_inj, day == 2:5)
 kruskal.test(dt_curated_inj_LD$daily_activity, dt_curated_inj_LD$genotype)
 
-dt_curated_inj_DD <- filter(dt_curated_inj, day == 5:7)
+dt_curated_inj_DD <- filter(dt_curated_inj, day == 6:8)
 kruskal.test(dt_curated_inj_DD$daily_activity, dt_curated_inj_DD$genotype)
 
 median(dt_curated_inj_DD$daily_activity[dt_curated_inj_DD$genotype == "ds5681"])
@@ -249,7 +378,49 @@ median(dt_curated_inj_LD$daily_activity[dt_curated_inj_LD$genotype == "ds5681"])
 median(dt_curated_inj_DD$daily_activity[dt_curated_inj_DD$genotype == "dsGFP"])
 median(dt_curated_inj_LD$daily_activity[dt_curated_inj_LD$genotype == "dsGFP"])
 
-mean(dt_curated_inj_LD$daily_activity[dt_curated_inj_LD$genotype == "dsGFP"])
+t.test(dt_curated_inj_DD$daily_activity ~ dt_curated_inj_DD$genotype)
+
+#trying something else for stats
+
+#want to make a dataset with means from each replicate, 5 df total
+#want to break it down by daily activity LD and DD of days 2-4 (and total FR)
+
+#unique dataset
+
+dt_curated_inj_LD <- filter(dt_curated_inj, day == 2:4)
+unique_LDdays <- dt_curated_inj_LD %>% distinct(daily_activity, .keep_all = TRUE)
+
+kruskal.test(unique_LDdays$daily_activity, unique_LDdays$genotype)
+
+dt_curated_inj_DD <- filter(dt_curated_inj, day == 6:8)
+unique_DDdays <- dt_curated_inj_DD %>% distinct(daily_activity, .keep_all = TRUE)
+
+kruskal.test(unique_DDdays$daily_activity, unique_DDdays$genotype)
+
+t.test(unique_LDdays$daily_activity ~ unique_LDdays$genotype)
+t.test(unique_DDdays$daily_activity ~ unique_DDdays$genotype)
+
+#plotting daily averages 
+
+dt_curated_inj <- dt_curated_inj %>%
+  group_by(genotype, day) %>%
+  mutate(mean_da = mean(daily_activity)) %>%
+  mutate(se_da = sd(daily_activity)/sqrt(30)) %>% #need to fix length for sqrt
+  ungroup()
+
+unique_days <- dt_curated_inj %>% distinct(daily_activity, .keep_all = TRUE)
+
+unique_days %>%
+ggplot(aes(x = day, y = mean_da, fill = genotype)) +
+  geom_bar(stat="identity", position = position_dodge(), color = "darkgray") +
+  geom_errorbar(aes(ymin = mean_da-se_da, ymax = mean_da+se_da), position = position_dodge(.9), width = .2, color = "gray34") +
+  theme_few()
+  
+
+#can I make a group df
+
+grouped <- group_data(dt_curated) %>%
+  group_data(hour)
 ############# Peak and Period Analysis #######################
 
 peak_summary <- rejoin(dt_peaks)
