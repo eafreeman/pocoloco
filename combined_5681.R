@@ -125,7 +125,7 @@ metadata2 <- data.table(file = rep(c("Data/EF_080524_5681/Monitor81.txt",
                        ## this is the tube number position in each monitor
                        region_id = rep(1:32, 3),
                        ## the genotypes used in the experiment
-                       genotype = rep(c("dsGFP",
+                       genotype = rep(c("dsgfp",
                                         "ds5681",
                                         "not_inj"), each = 32),
                        ## sex of the individuals
@@ -417,10 +417,31 @@ ggplot(aes(x = day, y = mean_da, fill = genotype)) +
   theme_few()
   
 
-#can I make a group df
+#Scaling down df
 
-grouped <- group_data(dt_curated) %>%
-  group_data(hour)
+hours <- dt_curated %>% distinct(hour, genotype, .keep_all = T)
+write.csv(hours, "avg_hourly_activity_270624.csv")
+
+mins <- dt_curated %>% distinct(min, genotype, .keep_all = T)
+mins <-  filter(mins, day == 2:7)
+
+
+c <- c("#f768a1","#c51b8a", "#7a0177")
+anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(300), 6))
+#anno_hour <- data.frame(day = c(7), x1 = rep(c(0)), x2 = rep(c(24)), y1 = rep(c(0)), y2 = rep(c(50)))
+ggplot() +
+  geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), 
+            fill = "grey85", color = "grey75") +
+  geom_bar(data = hours %>% filter(day %in% 2:7), 
+           aes(x = ZT, y = avg_hourly_activity, fill = genotype), 
+           stat = "summary", fun = "mean", position= "dodge") +
+  facet_wrap(~ day) +
+  scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
+  scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
+  labs(y = "Average Hourly Beam Breaks", x = "Hour", fill = "Treatment", 
+       title = "Hourly activity", legend = "Treatment") +
+  scale_fill_manual(values = c) +
+  theme_few()
 ############# Peak and Period Analysis #######################
 
 peak_summary <- rejoin(dt_peaks)
@@ -442,6 +463,13 @@ dt_peak_sum_id <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
                                                      sdphase = sd(peak_time)),
                                by = c("genotype", "sex", "entrainment", "phase", "id")]
 
+
+dt_peak_sum_id[str_detect(id, "04-29 02:00:00|Monitor81"), genotype := "dsgfp"]
+dt_peak_sum_id[str_detect(id, "04-29 02:00:00|Monitor83"), genotype := "not_inj"]
+dt_peak_sum_id[str_detect(id, "06-03 02:00:00|Monitor81"), genotype := "dsgfp"]
+dt_peak_sum_id[str_detect(id, "06-03 02:00:00|Monitor83"), genotype := "not_inj"]
+dt_peak_sum_id[str_detect(id, "Monitor82"), genotype := "ds5681"]
+
 dt_peak_sum <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
                                                   medtime = median(peak_time),
                                                   n = length(peak_time),
@@ -451,12 +479,23 @@ dt_peak_sum <- peak_summary[phase %in% c("FR"), .(meantime = mean(peak_time),
 
 grouped_ggbetweenstats(
   data = dt_peak_sum_id[phase %in% c("FR")],
-  x = entrainment,
+  x = genotype,
   y = medtime,
   grouping.var = genotype,
   mean.plotting = FALSE,
   title.text = "peak phase FR"
 )
+
+
+ggbetweenstats(
+  data = dt_peak_sum_id[phase %in% c("FR")],
+  x = genotype,
+  y = medtime,
+  grouping.var = genotype,
+  mean.plotting = FALSE,
+  title.text = "peak phase FR"
+)
+
 
 
 ## autocorrelation
@@ -544,12 +583,29 @@ ggperio(dt_pgram_FR1, aes(y = power - signif_threshold, colour=genotype)) +
 dt_pgram_FR1_sum <- rejoin(dt_pgram_FR1[peak == 1])
 dt_pgram_FR1_sum[, period_h := period/hours(1)]
 
+dt_pgram_FR1_sum[str_detect(id, "04-29 02:00:00|Monitor81"), genotype := "dsgfp"]
+dt_pgram_FR1_sum[str_detect(id, "04-29 02:00:00|Monitor83"), genotype := "not_inj"]
+dt_pgram_FR1_sum[str_detect(id, "06-03 02:00:00|Monitor81"), genotype := "dsgfp"]
+dt_pgram_FR1_sum[str_detect(id, "06-03 02:00:00|Monitor83"), genotype := "not_inj"]
+dt_pgram_FR1_sum[str_detect(id, "Monitor82"), genotype := "ds5681"]
+
 grouped_ggbetweenstats(
   data = dt_pgram_FR1_sum,
   x = entrainment,
   y = period_h,
   grouping.var = genotype,
-  title.text = "Chi^2 periodogram FR1"
+  title.text = "Chi^2 periodogram FR1",
+)
+
+#I think this is the proper one 
+ggbetweenstats(
+  data = dt_pgram_FR1_sum,
+  x = genotype,
+  y = period_h,
+  title = "Chi^2 periodogram",
+  ylab = "Period",
+  xlab = "Genotype",
+  pairwise.display = "significant"
 )
 
 
