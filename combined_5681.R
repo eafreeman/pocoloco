@@ -270,6 +270,9 @@ dt_curated[, avg_min_activity := mean(activity), by = .(genotype,min)]
 
 dt_curated[, hourly_activity := sum(activity), by = .(id,dt_curated$hour)]
 dt_curated[, avg_hourly_activity := mean(hourly_activity), by = .(genotype,dt_curated$hour)]
+dt_curated[, hourly_sd := sd(hourly_activity)/sqrt(length(hourly_activity)), by = .(genotype,dt_curated$hour)]
+
+
 
 dt_curated[, halfhourly_activity := sum(activity), by = .(id,dt_curated$half)]
 dt_curated[, avg_halfhourly_activity := mean(halfhourly_activity), by = .(genotype,dt_curated$half)]
@@ -304,21 +307,24 @@ ggetho(dt, aes(x=t, z=moving, y = genotype)) + #grouped
   theme_few()
 
 #Beam breaks by hour
-c <- c("#f768a1","#c51b8a", "#7a0177")
 anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(300), 6))
 #anno_hour <- data.frame(day = c(7), x1 = rep(c(0)), x2 = rep(c(24)), y1 = rep(c(0)), y2 = rep(c(50)))
 ggplot() +
   geom_rect(data = anno_hour, aes(xmin = x1, xmax= x2 , ymin = y1, ymax = y2), 
             fill = "grey85", color = "grey75") +
   geom_bar(data = dt_curated %>% filter(day %in% 2:7), 
-           aes(x = ZT, y = avg_hourly_activity, fill = genotype), 
+           aes(x = ZT, y = avg_hourly_activity, fill = genotype, group = genotype), 
            stat = "summary", fun = "mean", position= "dodge") +
+  geom_errorbar(data = dt_curated %>% filter(day %in% 2:7), 
+                aes(ymin = avg_hourly_activity-hourly_sd, 
+                    ymax = avg_hourly_activity+hourly_sd, x = ZT, group = genotype),
+                color = "gray34", position= "dodge") +
   facet_wrap(~ day) +
   scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
   scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
   labs(y = "Average Hourly Beam Breaks", x = "Hour", fill = "Treatment", 
        title = "Hourly activity", legend = "Treatment") +
-  scale_fill_manual(values = c) +
+  scale_fill_brewer(palette = "Set2") +
   theme_few()
 
 #Beam breaks by minute
@@ -344,19 +350,22 @@ dt_not <- filter(dt_curated, genotype == "not injected")
 a <- ggetho(dt_5681, aes(x=t, z=moving), multiplot = 2) + #5681
   stat_bar_tile_etho() +
   ggtitle("*dsAgDopEcR*") +
+  ylab("Day") +
   md_theme_minimal()
 
 b <- ggetho(dt_gfp, aes(x=t, z=moving), multiplot = 2) + #GFP
   stat_bar_tile_etho() +
   ggtitle("*dsGFP*") +
+  ylab("Day") +
   md_theme_minimal()
 
 c <- ggetho(dt_not, aes(x=t, z=moving), multiplot = 2) + #not injected
   stat_bar_tile_etho() +
   ggtitle("Not Injected") +
+  ylab("Day") +
   md_theme_minimal()
 
-ggarrange(a,b,c, labels = c("A", "B", "C"))
+ggarrange(a,b,c, labels = c("A", "B", "C"), ncol = 3)
 
 ################ Activity Statistics #########################
 
@@ -426,7 +435,6 @@ mins <- dt_curated %>% distinct(min, genotype, .keep_all = T)
 mins <-  filter(mins, day == 2:7)
 
 
-c <- c("#f768a1","#c51b8a", "#7a0177")
 anno_hour <- data.frame(day = c(2:7), x1 = rep(c(12, 0), c(3,3)), x2 = rep(c(24), 6), y1 = rep(c(0), 6), y2 = rep(c(300), 6))
 #anno_hour <- data.frame(day = c(7), x1 = rep(c(0)), x2 = rep(c(24)), y1 = rep(c(0)), y2 = rep(c(50)))
 ggplot() +
@@ -440,7 +448,7 @@ ggplot() +
   scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
   labs(y = "Average Hourly Beam Breaks", x = "Hour", fill = "Treatment", 
        title = "Hourly activity", legend = "Treatment") +
-  scale_fill_manual(values = c) +
+  scale_fill_brewer(palette = "Set2") +
   theme_few()
 ############# Peak and Period Analysis #######################
 
