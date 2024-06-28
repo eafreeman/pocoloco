@@ -443,6 +443,10 @@ ggplot() +
   geom_bar(data = hours %>% filter(day %in% 2:7), 
            aes(x = ZT, y = avg_hourly_activity, fill = genotype), 
            stat = "summary", fun = "mean", position= "dodge") +
+  geom_errorbar(data = dt_curated %>% filter(day %in% 2:7), 
+                aes(ymin = avg_hourly_activity-hourly_sd, 
+                    ymax = avg_hourly_activity+hourly_sd, x = ZT, group = genotype),
+                color = "gray34", position= "dodge") +
   facet_wrap(~ day) +
   scale_x_continuous(breaks = seq(0, 24, by= 4), expand = c(0,0)) +
   scale_y_continuous(limits=c(0, 300), expand = c(0,0)) +
